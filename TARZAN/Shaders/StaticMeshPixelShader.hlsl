@@ -87,7 +87,7 @@ float3 ComputeFireballLighting(float4 worldPos, float3 normal)
         float3 H = normalize(L + V);
 
         float dist = length(Fireball[i].FireballPosition - worldPos.xyz);
-        float attenuation = saturate(1.0 - pow(dist / Fireball[i].radius, Fireball[i].RadiusFallOff));
+        float attenuation = 1.0 / (1.0 + Fireball[i].RadiusFallOff * (dist / Fireball[i].radius) * (dist / Fireball[i].radius));
         attenuation *= Fireball[i].FireballIndensity;
 
         float diffuse = saturate(dot(N, L));
