@@ -28,36 +28,28 @@ public:
     ID3D11RasterizerState* RasterizerStateWIREFRAME = nullptr;
     DXGI_SWAP_CHAIN_DESC SwapchainDesc;
 
-    // GBuffer(Normal, Albedo)
+    // GBuffer(Normal, Albedo, Ambient)
     ID3D11Texture2D* GBufferTexture_Normal = nullptr;
     ID3D11Texture2D* GBufferTexture_Albedo = nullptr;
     ID3D11Texture2D* GBufferTexture_Ambient = nullptr;
-    ID3D11Texture2D* GBufferTexture_Position = nullptr;
 
     ID3D11RenderTargetView* GBufferRTV_Normal = nullptr;
     ID3D11RenderTargetView* GBufferRTV_Albedo = nullptr;
     ID3D11RenderTargetView* GBufferRTV_Ambient = nullptr;
-    ID3D11RenderTargetView* GBufferRTV_Position = nullptr;
 
     ID3D11ShaderResourceView* GBufferSRV_Normal = nullptr;
     ID3D11ShaderResourceView* GBufferSRV_Albedo = nullptr;
     ID3D11ShaderResourceView* GBufferSRV_Ambient = nullptr;
-    ID3D11ShaderResourceView* GBufferSRV_Position = nullptr;
 
-    ID3D11RenderTargetView* GBufferRTVs[4];
-    // - 
+    ID3D11RenderTargetView* GBufferRTVs[3];
+    // -
 
-    // LightPass(Color, Position)
+    // LightPass(Color)
     ID3D11Texture2D* LightPassTexture_Color = nullptr;
-    ID3D11Texture2D* LightPassTexture_Position = nullptr;
 
     ID3D11RenderTargetView* LightPassRTV_Color = nullptr;
-    ID3D11RenderTargetView* LightPassRTV_Position = nullptr;
 
     ID3D11ShaderResourceView* LightPassSRV_Color = nullptr;
-    ID3D11ShaderResourceView* LightPassSRV_Position = nullptr;
-
-    ID3D11RenderTargetView* LightPassRTVs[2];
     // -
 
     // PostProcessPass

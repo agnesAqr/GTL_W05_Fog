@@ -6,7 +6,7 @@
 
 void GBufferPass::Setup()
 {
-    Context->OMSetRenderTargets(4, Renderer->Graphics->GBufferRTVs, Renderer->Graphics->DepthStencilView);
+    Context->OMSetRenderTargets(3, Renderer->Graphics->GBufferRTVs, Renderer->Graphics->DepthStencilView);
 }
 
 void GBufferPass::Execute()

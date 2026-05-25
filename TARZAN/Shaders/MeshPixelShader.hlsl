@@ -41,7 +41,6 @@ struct PS_OUTPUT
     float4 Normal : SV_Target0;
     float4 Albedo : SV_Target1; // Color(rgb) + Object Validation(0.5: Valid)
     float4 Ambient : SV_Target2;
-    float4 WorldPos : SV_Target3; // World Position(xyz) + Depth(0-1)
 };
 
 PS_OUTPUT main(PS_INPUT input)
@@ -83,8 +82,7 @@ PS_OUTPUT main(PS_INPUT input)
     
     output.Ambient = (Material.AmbientColor.xyz, 1.0f);
     output.Albedo.w = 0.5f;
-    output.WorldPos = float4(input.WorldPosition.xyz, input.SceneDepth);
-    
+
     return output;
 }
 

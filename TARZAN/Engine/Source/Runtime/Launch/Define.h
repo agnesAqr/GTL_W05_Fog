@@ -344,6 +344,8 @@ struct FLightConstant
     float Padding2;
     FVector CameraPosition;
     float Padding;
+    FMatrix InverseView;
+    FMatrix InverseProjection;
 };
 
 struct FMaterial

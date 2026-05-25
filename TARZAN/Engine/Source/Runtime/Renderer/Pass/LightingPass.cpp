@@ -10,15 +10,15 @@ void LightingPass::Setup()
 {
     Renderer->PrepareLightShader();
 
-    // RenderTarget 설정 (Color, Position)
-    Context->OMSetRenderTargets(2, Renderer->Graphics->LightPassRTVs, nullptr);
+    // RenderTarget 설정 (Color only)
+    Context->OMSetRenderTargets(1, &Renderer->Graphics->LightPassRTV_Color, nullptr);
 
-    // GBuffer SRV (Normal, Albedo, Ambient, Position)
+    // GBuffer SRV (Normal, Albedo, Ambient) + DepthStencil SRV
     ID3D11ShaderResourceView* SRVs[] = {
         Renderer->Graphics->GBufferSRV_Normal,
         Renderer->Graphics->GBufferSRV_Albedo,
         Renderer->Graphics->GBufferSRV_Ambient,
-        Renderer->Graphics->GBufferSRV_Position
+        Renderer->Graphics->DepthStencilSRV
     };
     Context->PSSetShaderResources(0, 4, SRVs);
 

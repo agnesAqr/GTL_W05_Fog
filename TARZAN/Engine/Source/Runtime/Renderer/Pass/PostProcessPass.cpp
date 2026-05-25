@@ -13,7 +13,7 @@ void PostProcessPass::Setup()
 
     ID3D11ShaderResourceView* PPSRVs[] = {
         Renderer->Graphics->LightPassSRV_Color,
-        Renderer->Graphics->LightPassSRV_Position
+        Renderer->Graphics->DepthStencilSRV
     };
     Context->PSSetShaderResources(0, 2, PPSRVs);
 

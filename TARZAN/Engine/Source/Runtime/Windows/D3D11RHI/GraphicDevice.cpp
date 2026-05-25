@@ -191,22 +191,18 @@ void FGraphicsDevice::CreateGBuffer()
     Device->CreateTexture2D(&GBufferTexDesc, nullptr, &GBufferTexture_Normal);
     Device->CreateTexture2D(&GBufferTexDesc, nullptr, &GBufferTexture_Albedo);
     Device->CreateTexture2D(&GBufferTexDesc, nullptr, &GBufferTexture_Ambient);
-    Device->CreateTexture2D(&GBufferTexDesc, nullptr, &GBufferTexture_Position);
 
     Device->CreateRenderTargetView(GBufferTexture_Normal, &GBufferRTVDesc, &GBufferRTV_Normal);
     Device->CreateRenderTargetView(GBufferTexture_Albedo, &GBufferRTVDesc, &GBufferRTV_Albedo);
     Device->CreateRenderTargetView(GBufferTexture_Ambient, &GBufferRTVDesc, &GBufferRTV_Ambient);
-    Device->CreateRenderTargetView(GBufferTexture_Position, &GBufferRTVDesc, &GBufferRTV_Position);
 
     Device->CreateShaderResourceView(GBufferTexture_Normal, &GBufferSRVDesc, &GBufferSRV_Normal);
     Device->CreateShaderResourceView(GBufferTexture_Albedo, &GBufferSRVDesc, &GBufferSRV_Albedo);
     Device->CreateShaderResourceView(GBufferTexture_Ambient, &GBufferSRVDesc, &GBufferSRV_Ambient);
-    Device->CreateShaderResourceView(GBufferTexture_Position, &GBufferSRVDesc, &GBufferSRV_Position);
 
     GBufferRTVs[0] = GBufferRTV_Normal;
     GBufferRTVs[1] = GBufferRTV_Albedo;
     GBufferRTVs[2] = GBufferRTV_Ambient;
-    GBufferRTVs[3] = GBufferRTV_Position;
 }
 
 void FGraphicsDevice::CreateFrameBuffer()
@@ -272,16 +268,10 @@ void FGraphicsDevice::CreateLightPassBuffer()
     }
 
     Device->CreateTexture2D(&LightPassTexDesc, nullptr, &LightPassTexture_Color);
-    Device->CreateTexture2D(&LightPassTexDesc, nullptr, &LightPassTexture_Position);
 
     Device->CreateRenderTargetView(LightPassTexture_Color, &LightPassRTVDesc, &LightPassRTV_Color);
-    Device->CreateRenderTargetView(LightPassTexture_Position, &LightPassRTVDesc, &LightPassRTV_Position);
 
     Device->CreateShaderResourceView(LightPassTexture_Color, &LightPassSRVDesc, &LightPassSRV_Color);
-    Device->CreateShaderResourceView(LightPassTexture_Position, &LightPassSRVDesc, &LightPassSRV_Position);
-
-    LightPassRTVs[0] = LightPassRTV_Color;
-    LightPassRTVs[1] = LightPassRTV_Position;
 }
 
 void FGraphicsDevice::CreateBlendState()
@@ -335,9 +325,6 @@ void FGraphicsDevice::ReleaseGBuffer()
     if (GBufferRTV_Albedo)     { GBufferRTV_Albedo->Release();     GBufferRTV_Albedo = nullptr; }
     if (GBufferSRV_Albedo)     { GBufferSRV_Albedo->Release();     GBufferSRV_Albedo = nullptr; }
 
-    if (GBufferTexture_Position) { GBufferTexture_Position->Release(); GBufferTexture_Position = nullptr; }
-    if (GBufferRTV_Position)     { GBufferRTV_Position->Release();     GBufferRTV_Position = nullptr; }
-    if (GBufferSRV_Position)     { GBufferSRV_Position->Release();     GBufferSRV_Position = nullptr; }
 }
 
 void FGraphicsDevice::ReleaseFrameBuffer()
@@ -373,9 +360,6 @@ void FGraphicsDevice::ReleaseLightPassBuffer()
     if (LightPassRTV_Color) { LightPassRTV_Color->Release();     LightPassRTV_Color = nullptr; }
     if (LightPassSRV_Color) { LightPassSRV_Color->Release();     LightPassSRV_Color = nullptr; }
 
-    if (LightPassTexture_Position) { LightPassTexture_Position->Release(); LightPassTexture_Position = nullptr; }
-    if (LightPassRTV_Position) { LightPassRTV_Position->Release();     LightPassRTV_Position = nullptr; }
-    if (LightPassSRV_Position) { LightPassSRV_Position->Release();     LightPassSRV_Position = nullptr; }
 }
 
 void FGraphicsDevice::ReleaseRasterizerState()
@@ -446,14 +430,11 @@ void FGraphicsDevice::Prepare()
     DeviceContext->ClearRenderTargetView(FrameBufferRTV, ClearColor); // 렌더 타겟 뷰에 저장된 이전 프레임 데이터를 삭제
     DeviceContext->ClearRenderTargetView(UUIDFrameBufferRTV, ClearColor); 
   
-    DeviceContext->ClearRenderTargetView(GBufferRTV_Normal, ClearColor); 
-    DeviceContext->ClearRenderTargetView(GBufferRTV_Albedo, ClearColor); 
-    DeviceContext->ClearRenderTargetView(GBufferRTV_Ambient, ClearColor); 
-    DeviceContext->ClearRenderTargetView(GBufferRTV_Position, ClearColor);
+    DeviceContext->ClearRenderTargetView(GBufferRTV_Normal, ClearColor);
+    DeviceContext->ClearRenderTargetView(GBufferRTV_Albedo, ClearColor);
+    DeviceContext->ClearRenderTargetView(GBufferRTV_Ambient, ClearColor);
 
     DeviceContext->ClearRenderTargetView(LightPassRTV_Color, ClearColor);
-    DeviceContext->ClearRenderTargetView(LightPassRTV_Position, ClearColor)
-        ;
     DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0); // 깊이 버퍼 초기화 추가
 
     DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // 정정 연결 방식 설정
@@ -463,7 +444,7 @@ void FGraphicsDevice::Prepare()
 
     DeviceContext->OMSetDepthStencilState(DepthStencilState, 0);
 
-    DeviceContext->OMSetRenderTargets(4, GBufferRTVs, DepthStencilView);  // 렌더 타겟 설정(백버퍼를 가르킴)
+    DeviceContext->OMSetRenderTargets(3, GBufferRTVs, DepthStencilView);  // 렌더 타겟 설정(GBuffer 3장 + Depth)
 
     DeviceContext->OMSetBlendState(nullptr, nullptr, 0xffffffff); // 블렌뎅 상태 설정, 기본블렌딩 상태임
 }

@@ -107,6 +107,8 @@ void FConstantBufferUpdater::UpdateGlobalLightConstant(ID3D11Buffer* GlobalLight
         constants->Direction = GlobalLight.Direction;
         constants->CameraPosition = GlobalLight.CameraPosition;
         constants->Padding = GlobalLight.Padding;
+        constants->InverseView = GlobalLight.InverseView;
+        constants->InverseProjection = GlobalLight.InverseProjection;
     }
     DeviceContext->Unmap(GlobalLightBuffer, 0);
 }
