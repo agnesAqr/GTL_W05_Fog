@@ -12,6 +12,10 @@
 #include "ShaderManager.h"
 #include "ConstantBufferUpdater.h"
 #include "Pass/RenderPass.h"
+#include "Pass/GBufferPass.h"
+#include "Pass/LightingPass.h"
+#include "Pass/PostProcessPass.h"
+#include "Pass/OverlayPass.h"
 
 class ULightComponentBase;
 class UFireballComponent;
@@ -27,8 +31,12 @@ class UGizmoBaseComponent;
 class FRenderResourceManager;
 class UHeightFogComponent;
 
-class FRenderer 
+class FRenderer
 {
+    friend class GBufferPass;
+    friend class LightingPass;
+    friend class PostProcessPass;
+    friend class OverlayPass;
 public:
     ~FRenderer();
     void Render();
@@ -124,11 +132,11 @@ public:
     void UpdateMaterial(const FObjMaterialInfo& MaterialInfo) const;
 
 private:
-    // Render Pass
-    void RenderGBuffer();
-    void RenderLightPass();
-    void RenderPostProcessPass();
-    void RenderOverlayPass();
+    // Pass Instances
+    GBufferPass GBufferPassInstance;
+    LightingPass LightingPassInstance;
+    PostProcessPass PostProcessPassInstance;
+    OverlayPass OverlayPassInstance;
 
 public:
     ID3D11VertexShader* VertexTextureShader = nullptr;

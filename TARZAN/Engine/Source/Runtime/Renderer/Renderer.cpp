@@ -49,6 +49,12 @@ void FRenderer::Initialize(FGraphicsDevice* graphics)
     ConstantBufferUpdater.UpdateLitUnlitConstant(FlagBuffer, 1);
     SetSampler();
 
+    // Pass 인스턴스 초기화
+    GBufferPassInstance.Initialize(this, Graphics->DeviceContext);
+    LightingPassInstance.Initialize(this, Graphics->DeviceContext);
+    PostProcessPassInstance.Initialize(this, Graphics->DeviceContext);
+    OverlayPassInstance.Initialize(this, Graphics->DeviceContext);
+
     //UIMgr = new UImGuiManager;
     //UIMgr->Initialize(hWnd, graphicDevice.Device, graphicDevice.DeviceContext);
 }
@@ -91,12 +97,10 @@ void FRenderer::RenderPass()
     Graphics->ChangeRasterizer(ActiveViewport->GetViewMode());
     ChangeViewMode(ActiveViewport->GetViewMode());
 
-    RenderGBuffer();
-
-    RenderLightPass();
-
-    RenderPostProcessPass();
-    RenderOverlayPass();
+    GBufferPassInstance.Render();
+    LightingPassInstance.Render();
+    PostProcessPassInstance.Render();
+    OverlayPassInstance.Render();
 }
 
 void FRenderer::RenderImGui()
@@ -331,6 +335,7 @@ void FRenderer::SetSampler()
     SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
     SamplerDesc.MinLOD = 0;
     SamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    Graphics->Device->CreateSamplerState(&SamplerDesc, &SamplerState);
 }
 #pragma endregion
 
@@ -770,146 +775,8 @@ void FRenderer::RenderBatch(
 #pragma endregion Render
 
 #pragma region MultiPass
-void FRenderer::RenderGBuffer()
-{
-    Graphics->DeviceContext->OMSetRenderTargets(4, Graphics->GBufferRTVs, Graphics->DepthStencilView);
-
-    // StaticMesh
-    if (ActiveViewport->GetShowFlag() & static_cast<uint64>(EEngineShowFlags::SF_Primitives))
-        RenderStaticMeshes();
-
-    // Billboard
-    if (ActiveViewport->GetShowFlag() & static_cast<uint64>(EEngineShowFlags::SF_BillboardText))
-        RenderBillboards();
-}
-
-void FRenderer::RenderLightPass()
-{
-    PrepareLightShader();
-
-    //ID3D11RenderTargetView* rtv = Graphics->FrameBufferRTV;
-    //Graphics->DeviceContext->OMSetRenderTargets(1, &rtv, Graphics->DepthStencilView);
-    int mode = ActiveViewport->GetViewMode();
-
-    // Directional Light
-    FLightConstant GlobalLight = {
-        .Ambient = FVector4(0.1f, 0.1f, 0.1f, 1.f),
-        .Diffuse = FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-        .Specular = FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-        .Emissive = FVector(1.0f, 1.0f, 1.0f),
-        .Padding1 = 0,
-        .Direction = FVector(1.0f, -1.0f, -1.0f),
-        .Padding2 = 0,
-        .CameraPosition = ActiveViewport->GetCameraLocation(),
-        .Padding = (float)ActiveViewport->GetViewMode(),
-    };
-    ConstantBufferUpdater.UpdateGlobalLightConstant(LPLightConstantBuffer, GlobalLight);
-
-    RenderLight();
-
-    // Point Light
-    std::unique_ptr<FFireballArrayInfo> fireballArrayInfo = std::make_unique<FFireballArrayInfo>();
-
-    if (FireballObjs.Num() > 0)
-    {
-        fireballArrayInfo->FireballCount = 0;
-
-        for (int i = 0; i < FireballObjs.Num(); i++)
-        {
-            if (FireballObjs[i] != nullptr)
-            {
-                const FFireballInfo& fireballInfo = FireballObjs[i]->GetFireballInfo();
-                fireballArrayInfo->FireballConstants[i].Intensity = fireballInfo.Intensity;
-                fireballArrayInfo->FireballConstants[i].Radius = fireballInfo.Radius;
-                fireballArrayInfo->FireballConstants[i].Color = fireballInfo.Color;
-                fireballArrayInfo->FireballConstants[i].RadiusFallOff = fireballInfo.RadiusFallOff;
-                fireballArrayInfo->FireballConstants[i].Position = FireballObjs[i]->GetWorldLocation();
-                fireballArrayInfo->FireballConstants[i].LightType = fireballInfo.Type;
-                if (USpotLightComponent* spotLight = Cast<USpotLightComponent>(FireballObjs[i]))
-                {
-                    fireballArrayInfo->FireballConstants[i].InnerAngle = spotLight->GetInnerSpotAngle();
-                    fireballArrayInfo->FireballConstants[i].OuterAngle = spotLight->GetOuterSpotAngle();
-                    fireballArrayInfo->FireballConstants[i].Direction = spotLight->GetForwardVector();
-                }
-                fireballArrayInfo->FireballCount++;
-            }
-        }
-    }
-    ConstantBufferUpdater.UpdateFireballConstant(FireballConstantBuffer, *fireballArrayInfo);
-    ConstantBufferUpdater.UpdateScreenConstant(ScreenConstantBuffer, ActiveViewport);
-    // Spot Light
-
-    // 1. RenderTarget 설정 (Color, Position)
-    Graphics->DeviceContext->OMSetRenderTargets(2, Graphics->LightPassRTVs, nullptr);
-
-    // 2. GBuffer에서 SRV 연결 (Normal, Albedo, Position)
-    ID3D11ShaderResourceView* SRVs[] = {
-        Graphics->GBufferSRV_Normal,
-        Graphics->GBufferSRV_Albedo,
-        Graphics->GBufferSRV_Ambient,
-        Graphics->GBufferSRV_Position
-    };
-    Graphics->DeviceContext->PSSetShaderResources(0, 4, SRVs);
-
-    // 3. Set Sampler
-    Graphics->Device->CreateSamplerState(&SamplerDesc, &SamplerState);
-    Graphics->DeviceContext->PSSetSamplers(0, 1, &SamplerState);
-
-    // 4. Fullscreen Quad 렌더링
-    RenderFullScreenQuad();
-
-    // 5. SRV 언바인딩 (다음 Pass에서 충돌 방지)
-    ID3D11ShaderResourceView* nullSRVs[4] = { nullptr, nullptr, nullptr, nullptr };
-    Graphics->DeviceContext->PSSetShaderResources(0, 4, nullSRVs);
-}
-
-void FRenderer::RenderPostProcessPass()
-{
-    // 1. Prepare Shader
-    PreparePostProcessShader();
-
-    // 2. Update Constant
-    ConstantBufferUpdater.UpdateFogConstant(FogConstantBuffer, FogData);
-
-    // 3. Set RTV
-    ID3D11RenderTargetView* FrameBufferRTV = Graphics->FrameBufferRTV;
-    Graphics->DeviceContext->OMSetRenderTargets(1, &FrameBufferRTV, nullptr);
-
-    // 4. Set SRV
-    ID3D11ShaderResourceView* SRVs[] = {
-        Graphics->LightPassSRV_Color,
-        Graphics->LightPassSRV_Position
-    };
-    Graphics->DeviceContext->PSSetShaderResources(0, 2, SRVs);
-
-    // 5. Set Sampler
-    Graphics->Device->CreateSamplerState(&SamplerDesc, &SamplerState);
-    Graphics->DeviceContext->PSSetSamplers(0, 1, &SamplerState);
-
-    // 6. FullScreen Quad
-    RenderFullScreenQuad();
-
-    // 7. Unbinding SRV
-    ID3D11ShaderResourceView* nullSRVs[2] = { nullptr, nullptr };
-    Graphics->DeviceContext->PSSetShaderResources(0, 2, nullSRVs);
-}
-
-void FRenderer::RenderOverlayPass()
-{
-    // Enable Depth Test
-    Graphics->DeviceContext->OMSetRenderTargets(1, &Graphics->FrameBufferRTV, Graphics->DepthStencilView);
-
-    // Line
-    FVector CamPos = ActiveViewport->GetCameraLocation();
-    FVector4 CamPos4 = FVector4(CamPos.x, CamPos.y, CamPos.z, 1.f);
-    float blendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
-    Graphics->DeviceContext->OMSetBlendState(Graphics->LineBlendState, blendFactor, 0xffffffff);
-    UPrimitiveBatch::GetInstance().RenderBatch(ConstantBuffer, ActiveViewport->GetViewMatrix(), ActiveViewport->GetProjectionMatrix(), CamPos4);
-    Graphics->DeviceContext->OMSetBlendState(nullptr, nullptr, 0xffffffff);
-
-    // Gizmo
-    RenderGizmos();
-}
+// Pass 로직은 각 Pass 클래스(GBufferPass, LightingPass, PostProcessPass, OverlayPass)로 이동됨.
+// Renderer::RenderPass()에서 각 Pass 인스턴스의 Execute()를 호출하여 오케스트레이션.
 #pragma endregion MultiPass
 
 void FRenderer::ChangeViewMode(EViewModeIndex evi) const
